@@ -36,6 +36,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 24px;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+}
+
+.column-tasks-over {
+  background-color: var(--accent-bg);
 }
 
 .add-task-button {

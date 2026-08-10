@@ -1,4 +1,9 @@
 import { useState } from "react";
+import { useDroppable } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import type { ColumnWithTasks, Task } from "../../types";
 import { TaskCard } from "./TaskCard";
 import { TaskForm } from "./forms/TaskForm";
@@ -27,10 +32,13 @@ export function Column({
   isAddingTaskPending,
 }: ColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   function handleAddTask(values: TaskFormValues) {
     onAddTask(column.id, values, () => setIsAddingTask(false));
   }
+
+  const taskIds = column.tasks.map((task) => task.id);
 
   return (
     <div className="column">
@@ -53,11 +61,17 @@ export function Column({
           </button>
         </div>
       </div>
-      <div className="column-tasks">
-        {column.tasks.map((task) => (
-          <TaskCard key={task.id} task={task} onClick={onTaskClick} />
-        ))}
-      </div>
+
+      <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+        <div
+          ref={setNodeRef}
+          className={`column-tasks${isOver ? " column-tasks-over" : ""}`}
+        >
+          {column.tasks.map((task) => (
+            <TaskCard key={task.id} task={task} onClick={onTaskClick} />
+          ))}
+        </div>
+      </SortableContext>
 
       {isAddingTask ? (
         <TaskForm

@@ -17,6 +17,12 @@
   box-shadow: var(--shadow);
 }
 
+.task-card-overlay {
+  cursor: grabbing;
+  box-shadow: var(--shadow);
+  rotate: 2deg;
+}
+
 .task-card-title {
   margin: 0;
   font-size: 14px;
@@ -37,5 +43,6 @@
   word-break: break-word;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
 }
