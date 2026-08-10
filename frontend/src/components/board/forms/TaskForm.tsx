@@ -1,27 +1,27 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import "./BoardForm.css";
+import "./TaskForm.css";
 
-export interface BoardFormValues {
+export interface TaskFormValues {
   title: string;
   description?: string;
 }
 
-interface BoardFormProps {
+interface TaskFormProps {
   mode: "create" | "edit";
-  initialValues?: BoardFormValues;
-  onSubmit: (values: BoardFormValues) => void;
+  initialValues?: TaskFormValues;
+  onSubmit: (values: TaskFormValues) => void;
   onCancel: VoidFunction;
   isSubmitting?: boolean;
 }
 
-export function BoardForm({
+export function TaskForm({
   mode,
   initialValues,
   onSubmit,
   onCancel,
   isSubmitting,
-}: BoardFormProps) {
+}: TaskFormProps) {
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [description, setDescription] = useState(
     initialValues?.description ?? "",
@@ -38,8 +38,8 @@ export function BoardForm({
   }
 
   return (
-    <form className="board-form" onSubmit={handleSubmit}>
-      <label className="board-form-field">
+    <form className="task-form" onSubmit={handleSubmit}>
+      <label className="task-form-field">
         Title
         <input
           type="text"
@@ -49,7 +49,7 @@ export function BoardForm({
           autoFocus
         />
       </label>
-      <label className="board-form-field">
+      <label className="task-form-field">
         Description
         <textarea
           value={description}
@@ -57,12 +57,12 @@ export function BoardForm({
           rows={3}
         />
       </label>
-      <div className="board-form-actions">
+      <div className="task-form-actions">
         <button type="button" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </button>
         <button type="submit" disabled={isSubmitting || !title.trim()}>
-          {mode === "create" ? "Create board" : "Save changes"}
+          {mode === "create" ? "Add task" : "Save"}
         </button>
       </div>
     </form>

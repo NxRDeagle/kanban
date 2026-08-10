@@ -1,0 +1,44 @@
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 260px;
+  flex-shrink: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--code-bg);
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.column-title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.column-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.column-actions button {
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.column-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-task-button {
+  align-self: flex-start;
+  font-size: 13px;
+}

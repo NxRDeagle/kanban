@@ -1,0 +1,16 @@
+.board-description {
+  color: var(--text);
+  margin: 0 0 16px;
+}
+
+.board-columns {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.add-column {
+  width: 260px;
+  flex-shrink: 0;
+}

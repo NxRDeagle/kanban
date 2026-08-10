@@ -1,0 +1,10 @@
+.task-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task-modal-delete {
+  align-self: flex-start;
+  color: #800e02;
+}

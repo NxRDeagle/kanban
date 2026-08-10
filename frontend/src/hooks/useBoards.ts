@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createBoard,
   deleteBoard,
+  getBoard,
   getBoards,
   updateBoard,
 } from "../api/boards";
@@ -12,6 +13,13 @@ export function useBoardsQuery() {
   return useQuery({
     queryKey: boardsKeys.all,
     queryFn: getBoards,
+  });
+}
+
+export function useBoardQuery(boardId: string) {
+  return useQuery({
+    queryKey: boardsKeys.detail(boardId),
+    queryFn: () => getBoard(boardId),
   });
 }
 
