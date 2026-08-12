@@ -1,6 +1,9 @@
 #include "crow.h"
+#include "db/database.hpp"
 
 int main() {
+    kanban::db::Database database("kanban.db");
+
     crow::SimpleApp app;
 
     CROW_ROUTE(app, "/api/health")
