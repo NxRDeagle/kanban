@@ -19,6 +19,8 @@ configure_file(
 add_executable(kanban_server
     src/main.cpp
     src/db/database.cpp
+    src/repositories/board_repository.cpp
+    src/routes/board_routes.cpp
 )
 target_include_directories(kanban_server PRIVATE ${CMAKE_BINARY_DIR}/generated src)
 target_link_libraries(kanban_server PRIVATE Crow::Crow SQLiteCpp nlohmann_json::nlohmann_json)

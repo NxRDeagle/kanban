@@ -36,3 +36,8 @@ CREATE TABLE tasks (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- Placeholder owner until real auth/registration exists (Phase 16). Boards
+-- created before then are attributed to this single demo user.
+INSERT INTO users (id, email, username, password_hash, created_at, updated_at)
+VALUES (1, 'demo@example.com', 'demo', 'placeholder', datetime('now'), datetime('now'));

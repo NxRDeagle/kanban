@@ -5,7 +5,12 @@
     ]
   },
   "ExpandedNodes": [
-    ""
+    "",
+    "\\src",
+    "\\src\\db",
+    "\\src\\db\\migrations",
+    "\\tools"
   ],
+  "SelectedNode": "\\src\\db\\migrations\\0001_init.sql",
   "PreviewInSolutionExplorer": false
 }
