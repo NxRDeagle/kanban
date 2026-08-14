@@ -43,6 +43,46 @@ void registerBoardRoutes(crow::SimpleApp& app, kanban::repositories::BoardReposi
         auto board = repository.create(body["title"].get<std::string>(), description);
         return jsonResponse(201, kanban::models::to_json(board));
     });
+
+    CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::GET)
+    ([&repository](int64_t id) {
+        auto board = repository.getById(id);
+        if (!board.has_value()) {
+            return errorResponse(404, "Board not found");
+        }
+        return jsonResponse(200, kanban::models::to_json(*board));
+    });
+
+    CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::PATCH)
+    ([&repository](const crow::request& req, int64_t id) {
+        auto body = nlohmann::json::parse(req.body, nullptr, false);
+        if (body.is_discarded()) {
+            return errorResponse(400, "invalid JSON body");
+        }
+
+        kanban::repositories::BoardUpdate changes;
+        if (body.contains("title")) {
+            if (!body["title"].is_string()) {
+                return errorResponse(400, "title must be a string");
+            }
+            changes.title = body["title"].get<std::string>();
+        }
+        if (body.contains("description")) {
+            if (body["description"].is_null()) {
+                changes.description = std::optional<std::string>(std::nullopt);
+            } else if (body["description"].is_string()) {
+                changes.description = std::optional<std::string>(body["description"].get<std::string>());
+            } else {
+                return errorResponse(400, "description must be a string or null");
+            }
+        }
+
+        auto board = repository.update(id, changes);
+        if (!board.has_value()) {
+            return errorResponse(404, "Board not found");
+        }
+        return jsonResponse(200, kanban::models::to_json(*board));
+    });
 }
 
 }

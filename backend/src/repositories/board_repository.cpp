@@ -58,4 +58,49 @@ std::vector<kanban::models::Board> BoardRepository::getAll() {
     return boards;
 }
 
+std::optional<kanban::models::Board> BoardRepository::getById(int64_t id) {
+    SQLite::Statement stmt(
+        db_.handle(),
+        "SELECT id, owner_id, title, description, created_at, updated_at FROM boards WHERE id = ?;");
+    stmt.bind(1, id);
+    if (!stmt.executeStep()) {
+        return std::nullopt;
+    }
+    return mapRow(stmt);
+}
+
+std::optional<kanban::models::Board> BoardRepository::update(int64_t id, const BoardUpdate& changes) {
+    std::string setClause;
+    if (changes.title.has_value()) {
+        setClause += "title = ?, ";
+    }
+    if (changes.description.has_value()) {
+        setClause += "description = ?, ";
+    }
+    if (setClause.empty()) {
+        return getById(id);
+    }
+    setClause += "updated_at = datetime('now')";
+
+    SQLite::Statement stmt(db_.handle(), "UPDATE boards SET " + setClause + " WHERE id = ?;");
+    int index = 1;
+    if (changes.title.has_value()) {
+        stmt.bind(index++, *changes.title);
+    }
+    if (changes.description.has_value()) {
+        if (changes.description->has_value()) {
+            stmt.bind(index++, **changes.description);
+        } else {
+            stmt.bind(index++);
+        }
+    }
+    stmt.bind(index, id);
+    stmt.exec();
+
+    if (db_.handle().getChanges() == 0) {
+        return std::nullopt;
+    }
+    return getById(id);
+}
+
 }
