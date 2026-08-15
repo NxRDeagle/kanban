@@ -103,4 +103,11 @@ std::optional<kanban::models::Board> BoardRepository::update(int64_t id, const B
     return getById(id);
 }
 
+bool BoardRepository::remove(int64_t id) {
+    SQLite::Statement stmt(db_.handle(), "DELETE FROM boards WHERE id = ?;");
+    stmt.bind(1, id);
+    stmt.exec();
+    return db_.handle().getChanges() > 0;
+}
+
 }

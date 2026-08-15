@@ -22,6 +22,7 @@ public:
     std::vector<kanban::models::Board> getAll();
     std::optional<kanban::models::Board> getById(int64_t id);
     std::optional<kanban::models::Board> update(int64_t id, const BoardUpdate& changes);
+    bool remove(int64_t id);
 
 private:
     kanban::db::Database& db_;

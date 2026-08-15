@@ -2,6 +2,11 @@
 
 #include <nlohmann/json.hpp>
 
+// Переопределение макроса от винды, тк он ломает crow::HTTPMethod::DELETE.
+#ifdef DELETE
+#undef DELETE
+#endif
+
 namespace kanban::routes {
 
 namespace {
@@ -82,6 +87,14 @@ void registerBoardRoutes(crow::SimpleApp& app, kanban::repositories::BoardReposi
             return errorResponse(404, "Board not found");
         }
         return jsonResponse(200, kanban::models::to_json(*board));
+    });
+
+    CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::DELETE)
+    ([&repository](int64_t id) {
+        if (!repository.remove(id)) {
+            return errorResponse(404, "Board not found");
+        }
+        return crow::response(204);
     });
 }
 
