@@ -21,8 +21,10 @@ add_executable(kanban_server
     src/db/database.cpp
     src/repositories/board_repository.cpp
     src/repositories/column_repository.cpp
+    src/repositories/task_repository.cpp
     src/routes/board_routes.cpp
     src/routes/column_routes.cpp
+    src/routes/task_routes.cpp
 )
 target_include_directories(kanban_server PRIVATE ${CMAKE_BINARY_DIR}/generated src)
 target_link_libraries(kanban_server PRIVATE Crow::Crow SQLiteCpp nlohmann_json::nlohmann_json)
