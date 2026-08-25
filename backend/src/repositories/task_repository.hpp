@@ -5,6 +5,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace kanban::repositories {
 
@@ -22,6 +23,7 @@ public:
         const std::string& title,
         const std::optional<std::string>& description);
     std::optional<kanban::models::Task> getById(int64_t id);
+    std::vector<kanban::models::Task> getByColumnId(int64_t columnId);
     std::optional<kanban::models::Task> update(int64_t id, const TaskUpdate& changes);
     bool remove(int64_t id);
     std::optional<kanban::models::Task> move(int64_t id, int64_t toColumnId, int toPosition);

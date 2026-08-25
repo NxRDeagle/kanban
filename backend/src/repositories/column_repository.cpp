@@ -56,6 +56,19 @@ std::optional<kanban::models::BoardColumn> ColumnRepository::getById(int64_t id)
     return mapRow(stmt);
 }
 
+std::vector<kanban::models::BoardColumn> ColumnRepository::getByBoardId(int64_t boardId) {
+    std::vector<kanban::models::BoardColumn> columns;
+    SQLite::Statement stmt(
+        db_.handle(),
+        "SELECT id, board_id, title, position, created_at, updated_at "
+        "FROM board_columns WHERE board_id = ? ORDER BY position;");
+    stmt.bind(1, boardId);
+    while (stmt.executeStep()) {
+        columns.push_back(mapRow(stmt));
+    }
+    return columns;
+}
+
 std::optional<kanban::models::BoardColumn> ColumnRepository::update(int64_t id, const std::string& title) {
     SQLite::Statement stmt(
         db_.handle(), "UPDATE board_columns SET title = ?, updated_at = datetime('now') WHERE id = ?;");

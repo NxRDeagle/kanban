@@ -22,7 +22,7 @@ int main() {
         return body;
     });
 
-    kanban::routes::registerBoardRoutes(app, boardRepository);
+    kanban::routes::registerBoardRoutes(app, boardRepository, columnRepository, taskRepository);
     kanban::routes::registerColumnRoutes(app, columnRepository);
     kanban::routes::registerTaskRoutes(app, taskRepository);
 

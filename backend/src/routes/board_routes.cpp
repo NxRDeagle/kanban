@@ -23,18 +23,22 @@ crow::response errorResponse(int status, const std::string& message) {
 
 }
 
-void registerBoardRoutes(crow::SimpleApp& app, kanban::repositories::BoardRepository& repository) {
+void registerBoardRoutes(
+    crow::SimpleApp& app,
+    kanban::repositories::BoardRepository& boardRepository,
+    kanban::repositories::ColumnRepository& columnRepository,
+    kanban::repositories::TaskRepository& taskRepository) {
     CROW_ROUTE(app, "/api/boards").methods(crow::HTTPMethod::GET)
-    ([&repository]() {
+    ([&boardRepository]() {
         nlohmann::json arr = nlohmann::json::array();
-        for (const auto& board : repository.getAll()) {
+        for (const auto& board : boardRepository.getAll()) {
             arr.push_back(kanban::models::to_json(board));
         }
         return jsonResponse(200, arr);
     });
 
     CROW_ROUTE(app, "/api/boards").methods(crow::HTTPMethod::POST)
-    ([&repository](const crow::request& req) {
+    ([&boardRepository](const crow::request& req) {
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded() || !body.contains("title") || !body["title"].is_string()) {
             return errorResponse(400, "title is required");
@@ -45,21 +49,34 @@ void registerBoardRoutes(crow::SimpleApp& app, kanban::repositories::BoardReposi
             description = body["description"].get<std::string>();
         }
 
-        auto board = repository.create(body["title"].get<std::string>(), description);
+        auto board = boardRepository.create(body["title"].get<std::string>(), description);
         return jsonResponse(201, kanban::models::to_json(board));
     });
 
     CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::GET)
-    ([&repository](int64_t id) {
-        auto board = repository.getById(id);
+    ([&boardRepository, &columnRepository, &taskRepository](int64_t id) {
+        auto board = boardRepository.getById(id);
         if (!board.has_value()) {
             return errorResponse(404, "Board not found");
         }
-        return jsonResponse(200, kanban::models::to_json(*board));
+
+        auto body = kanban::models::to_json(*board);
+        nlohmann::json columnsJson = nlohmann::json::array();
+        for (const auto& column : columnRepository.getByBoardId(id)) {
+            auto columnJson = kanban::models::to_json(column);
+            nlohmann::json tasksJson = nlohmann::json::array();
+            for (const auto& task : taskRepository.getByColumnId(column.id)) {
+                tasksJson.push_back(kanban::models::to_json(task));
+            }
+            columnJson["tasks"] = tasksJson;
+            columnsJson.push_back(columnJson);
+        }
+        body["columns"] = columnsJson;
+        return jsonResponse(200, body);
     });
 
     CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::PATCH)
-    ([&repository](const crow::request& req, int64_t id) {
+    ([&boardRepository](const crow::request& req, int64_t id) {
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded()) {
             return errorResponse(400, "invalid JSON body");
@@ -82,7 +99,7 @@ void registerBoardRoutes(crow::SimpleApp& app, kanban::repositories::BoardReposi
             }
         }
 
-        auto board = repository.update(id, changes);
+        auto board = boardRepository.update(id, changes);
         if (!board.has_value()) {
             return errorResponse(404, "Board not found");
         }
@@ -90,8 +107,8 @@ void registerBoardRoutes(crow::SimpleApp& app, kanban::repositories::BoardReposi
     });
 
     CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::DELETE)
-    ([&repository](int64_t id) {
-        if (!repository.remove(id)) {
+    ([&boardRepository](int64_t id) {
+        if (!boardRepository.remove(id)) {
             return errorResponse(404, "Board not found");
         }
         return crow::response(204);

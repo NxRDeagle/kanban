@@ -77,6 +77,19 @@ std::optional<kanban::models::Task> TaskRepository::getById(int64_t id) {
     return mapRow(stmt);
 }
 
+std::vector<kanban::models::Task> TaskRepository::getByColumnId(int64_t columnId) {
+    std::vector<kanban::models::Task> tasks;
+    SQLite::Statement stmt(
+        db_.handle(),
+        "SELECT id, column_id, title, description, position, created_at, updated_at "
+        "FROM tasks WHERE column_id = ? ORDER BY position;");
+    stmt.bind(1, columnId);
+    while (stmt.executeStep()) {
+        tasks.push_back(mapRow(stmt));
+    }
+    return tasks;
+}
+
 std::optional<kanban::models::Task> TaskRepository::update(int64_t id, const TaskUpdate& changes) {
     std::string setClause;
     if (changes.title.has_value()) {
