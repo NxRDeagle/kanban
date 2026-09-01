@@ -1,6 +1,7 @@
 #include "board_routes.hpp"
 
 #include <nlohmann/json.hpp>
+#include <optional>
 
 // Переопределение макроса от винды, тк он ломает crow::HTTPMethod::DELETE.
 #ifdef DELETE
@@ -27,18 +28,29 @@ void registerBoardRoutes(
     crow::SimpleApp& app,
     kanban::repositories::BoardRepository& boardRepository,
     kanban::repositories::ColumnRepository& columnRepository,
-    kanban::repositories::TaskRepository& taskRepository) {
+    kanban::repositories::TaskRepository& taskRepository,
+    kanban::auth::TokenService& tokens) {
     CROW_ROUTE(app, "/api/boards").methods(crow::HTTPMethod::GET)
-    ([&boardRepository]() {
+    ([&boardRepository, &tokens](const crow::request& req) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+
         nlohmann::json arr = nlohmann::json::array();
-        for (const auto& board : boardRepository.getAll()) {
+        for (const auto& board : boardRepository.getAllByOwner(*userId)) {
             arr.push_back(kanban::models::to_json(board));
         }
         return jsonResponse(200, arr);
     });
 
     CROW_ROUTE(app, "/api/boards").methods(crow::HTTPMethod::POST)
-    ([&boardRepository](const crow::request& req) {
+    ([&boardRepository, &tokens](const crow::request& req) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded() || !body.contains("title") || !body["title"].is_string()) {
             return errorResponse(400, "title is required");
@@ -49,14 +61,19 @@ void registerBoardRoutes(
             description = body["description"].get<std::string>();
         }
 
-        auto board = boardRepository.create(body["title"].get<std::string>(), description);
+        auto board = boardRepository.create(*userId, body["title"].get<std::string>(), description);
         return jsonResponse(201, kanban::models::to_json(board));
     });
 
     CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::GET)
-    ([&boardRepository, &columnRepository, &taskRepository](int64_t id) {
+    ([&boardRepository, &columnRepository, &taskRepository, &tokens](const crow::request& req, int64_t id) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+
         auto board = boardRepository.getById(id);
-        if (!board.has_value()) {
+        if (!board.has_value() || board->ownerId != *userId) {
             return errorResponse(404, "Board not found");
         }
 
@@ -76,7 +93,17 @@ void registerBoardRoutes(
     });
 
     CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::PATCH)
-    ([&boardRepository](const crow::request& req, int64_t id) {
+    ([&boardRepository, &tokens](const crow::request& req, int64_t id) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+
+        auto existing = boardRepository.getById(id);
+        if (!existing.has_value() || existing->ownerId != *userId) {
+            return errorResponse(404, "Board not found");
+        }
+
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded()) {
             return errorResponse(400, "invalid JSON body");
@@ -107,10 +134,17 @@ void registerBoardRoutes(
     });
 
     CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::DELETE)
-    ([&boardRepository](int64_t id) {
-        if (!boardRepository.remove(id)) {
+    ([&boardRepository, &tokens](const crow::request& req, int64_t id) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+
+        auto existing = boardRepository.getById(id);
+        if (!existing.has_value() || existing->ownerId != *userId) {
             return errorResponse(404, "Board not found");
         }
+        boardRepository.remove(id);
         return crow::response(204);
     });
 }

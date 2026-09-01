@@ -23,9 +23,20 @@ crow::response errorResponse(int status, const std::string& message) {
 
 }
 
-void registerTaskRoutes(crow::SimpleApp& app, kanban::repositories::TaskRepository& repository) {
+void registerTaskRoutes(
+    crow::SimpleApp& app,
+    kanban::repositories::TaskRepository& repository,
+    kanban::auth::TokenService& tokens) {
     CROW_ROUTE(app, "/api/columns/<int>/tasks").methods(crow::HTTPMethod::POST)
-    ([&repository](const crow::request& req, int64_t columnId) {
+    ([&repository, &tokens](const crow::request& req, int64_t columnId) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+        if (!repository.columnOwnedByUser(columnId, *userId)) {
+            return errorResponse(404, "Column not found");
+        }
+
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded() || !body.contains("title") || !body["title"].is_string()) {
             return errorResponse(400, "title is required");
@@ -44,7 +55,15 @@ void registerTaskRoutes(crow::SimpleApp& app, kanban::repositories::TaskReposito
     });
 
     CROW_ROUTE(app, "/api/tasks/<int>").methods(crow::HTTPMethod::PATCH)
-    ([&repository](const crow::request& req, int64_t id) {
+    ([&repository, &tokens](const crow::request& req, int64_t id) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+        if (!repository.ownedByUser(id, *userId)) {
+            return errorResponse(404, "Task not found");
+        }
+
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded()) {
             return errorResponse(400, "invalid JSON body");
@@ -75,15 +94,28 @@ void registerTaskRoutes(crow::SimpleApp& app, kanban::repositories::TaskReposito
     });
 
     CROW_ROUTE(app, "/api/tasks/<int>").methods(crow::HTTPMethod::DELETE)
-    ([&repository](int64_t id) {
-        if (!repository.remove(id)) {
+    ([&repository, &tokens](const crow::request& req, int64_t id) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+        if (!repository.ownedByUser(id, *userId)) {
             return errorResponse(404, "Task not found");
         }
+        repository.remove(id);
         return crow::response(204);
     });
 
     CROW_ROUTE(app, "/api/tasks/<int>/move").methods(crow::HTTPMethod::POST)
-    ([&repository](const crow::request& req, int64_t id) {
+    ([&repository, &tokens](const crow::request& req, int64_t id) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+        if (!repository.ownedByUser(id, *userId)) {
+            return errorResponse(404, "Task not found");
+        }
+
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded()
             || !body.contains("toColumnId") || !body["toColumnId"].is_number_integer()
@@ -91,14 +123,12 @@ void registerTaskRoutes(crow::SimpleApp& app, kanban::repositories::TaskReposito
             return errorResponse(400, "toColumnId and toPosition are required");
         }
 
-        if (!repository.getById(id).has_value()) {
-            return errorResponse(404, "Task not found");
+        const auto toColumnId = body["toColumnId"].get<int64_t>();
+        if (!repository.columnOwnedByUser(toColumnId, *userId)) {
+            return errorResponse(404, "Column not found");
         }
 
-        auto task = repository.move(
-            id,
-            body["toColumnId"].get<int64_t>(),
-            body["toPosition"].get<int>());
+        auto task = repository.move(id, toColumnId, body["toPosition"].get<int>());
         if (!task.has_value()) {
             return errorResponse(404, "Column not found");
         }

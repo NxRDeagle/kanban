@@ -1,32 +1,32 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/http";
-import { login } from "../api/auth";
+import { register } from "../api/auth";
 import { useAuthStore } from "../store/auth";
 import "./AuthPage.css";
 
-export function LoginPage() {
+export function RegisterPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const setSession = useAuthStore((state) => state.setSession);
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const from =
-    (location.state as { from?: { pathname: string } } | null)?.from
-      ?.pathname ?? "/";
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
     try {
-      const session = await login({ email: email.trim(), password });
+      const session = await register({
+        email: email.trim(),
+        username: username.trim(),
+        password,
+      });
       setSession(session.token, session.user);
-      navigate(from, { replace: true });
+      navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Request failed");
     } finally {
@@ -37,7 +37,7 @@ export function LoginPage() {
   return (
     <div className="auth-page">
       <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>Log in</h1>
+        <h1>Register</h1>
         <label className="auth-form-field">
           Email
           <input
@@ -49,22 +49,35 @@ export function LoginPage() {
           />
         </label>
         <label className="auth-form-field">
+          Username
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            minLength={3}
+            maxLength={32}
+            pattern="[A-Za-z0-9_]+"
+          />
+        </label>
+        <label className="auth-form-field">
           Password
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={8}
           />
         </label>
         {error && <p className="auth-form-error">{error}</p>}
         <div className="auth-form-actions">
           <button type="submit" disabled={isSubmitting}>
-            Log in
+            Create account
           </button>
         </div>
         <p className="auth-switch">
-          No account? <Link to="/register">Register</Link>
+          Already have an account? <Link to="/login">Log in</Link>
         </p>
       </form>
     </div>

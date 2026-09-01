@@ -38,11 +38,6 @@ void Database::runMigrations() {
         std::cout << "Migration 0001_init already applied.\n";
     }
 
-    // TODO: После внедрения авторизации выпилить
-    db_.exec(
-        "INSERT OR IGNORE INTO users (id, email, username, password_hash, created_at, updated_at) "
-        "VALUES (1, 'demo@example.com', 'demo', 'placeholder', datetime('now'), datetime('now'));");
-
     SQLite::Statement tablesStmt(
         db_, "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name;");
     std::cout << "Tables in database: ";

@@ -2,13 +2,13 @@
 
 #include "crow.h"
 #include "../auth/token_service.hpp"
-#include "../repositories/task_repository.hpp"
+#include "../repositories/user_repository.hpp"
 
 namespace kanban::routes {
 
-void registerTaskRoutes(
+void registerAuthRoutes(
     crow::SimpleApp& app,
-    kanban::repositories::TaskRepository& repository,
+    kanban::repositories::UserRepository& users,
     kanban::auth::TokenService& tokens);
 
 }

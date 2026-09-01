@@ -213,4 +213,27 @@ std::optional<kanban::models::Task> TaskRepository::move(int64_t id, int64_t toC
     return getById(id);
 }
 
+bool TaskRepository::ownedByUser(int64_t taskId, int64_t userId) {
+    SQLite::Statement stmt(
+        db_.handle(),
+        "SELECT 1 FROM tasks t "
+        "INNER JOIN board_columns c ON c.id = t.column_id "
+        "INNER JOIN boards b ON b.id = c.board_id "
+        "WHERE t.id = ? AND b.owner_id = ?;");
+    stmt.bind(1, taskId);
+    stmt.bind(2, userId);
+    return stmt.executeStep();
+}
+
+bool TaskRepository::columnOwnedByUser(int64_t columnId, int64_t userId) {
+    SQLite::Statement stmt(
+        db_.handle(),
+        "SELECT 1 FROM board_columns c "
+        "INNER JOIN boards b ON b.id = c.board_id "
+        "WHERE c.id = ? AND b.owner_id = ?;");
+    stmt.bind(1, columnId);
+    stmt.bind(2, userId);
+    return stmt.executeStep();
+}
+
 }

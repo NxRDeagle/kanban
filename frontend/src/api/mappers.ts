@@ -4,12 +4,14 @@ import type {
   Column,
   ColumnWithTasks,
   Task,
+  User,
 } from "../types";
 import type {
   ApiBoard,
   ApiBoardWithColumns,
   ApiColumn,
   ApiTask,
+  ApiUser,
 } from "./types";
 
 export function mapBoard(board: ApiBoard): Board {
@@ -43,6 +45,16 @@ export function mapTask(task: ApiTask): Task {
     position: task.position,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
+  };
+}
+
+export function mapUser(user: ApiUser): User {
+  return {
+    id: String(user.id),
+    email: user.email,
+    username: user.username,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
   };
 }
 

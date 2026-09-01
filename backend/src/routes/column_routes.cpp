@@ -23,15 +23,27 @@ crow::response errorResponse(int status, const std::string& message) {
 
 }
 
-void registerColumnRoutes(crow::SimpleApp& app, kanban::repositories::ColumnRepository& repository) {
+void registerColumnRoutes(
+    crow::SimpleApp& app,
+    kanban::repositories::ColumnRepository& columns,
+    kanban::repositories::BoardRepository& boards,
+    kanban::auth::TokenService& tokens) {
     CROW_ROUTE(app, "/api/boards/<int>/columns").methods(crow::HTTPMethod::POST)
-    ([&repository](const crow::request& req, int64_t boardId) {
+    ([&columns, &boards, &tokens](const crow::request& req, int64_t boardId) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+        if (!boards.ownedBy(boardId, *userId)) {
+            return errorResponse(404, "Board not found");
+        }
+
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded() || !body.contains("title") || !body["title"].is_string()) {
             return errorResponse(400, "title is required");
         }
 
-        auto column = repository.create(boardId, body["title"].get<std::string>());
+        auto column = columns.create(boardId, body["title"].get<std::string>());
         if (!column.has_value()) {
             return errorResponse(404, "Board not found");
         }
@@ -39,13 +51,21 @@ void registerColumnRoutes(crow::SimpleApp& app, kanban::repositories::ColumnRepo
     });
 
     CROW_ROUTE(app, "/api/columns/<int>").methods(crow::HTTPMethod::PATCH)
-    ([&repository](const crow::request& req, int64_t id) {
+    ([&columns, &tokens](const crow::request& req, int64_t id) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+        if (!columns.ownedByUser(id, *userId)) {
+            return errorResponse(404, "Column not found");
+        }
+
         auto body = nlohmann::json::parse(req.body, nullptr, false);
         if (body.is_discarded() || !body.contains("title") || !body["title"].is_string()) {
             return errorResponse(400, "title is required");
         }
 
-        auto column = repository.update(id, body["title"].get<std::string>());
+        auto column = columns.update(id, body["title"].get<std::string>());
         if (!column.has_value()) {
             return errorResponse(404, "Column not found");
         }
@@ -53,10 +73,15 @@ void registerColumnRoutes(crow::SimpleApp& app, kanban::repositories::ColumnRepo
     });
 
     CROW_ROUTE(app, "/api/columns/<int>").methods(crow::HTTPMethod::DELETE)
-    ([&repository](int64_t id) {
-        if (!repository.remove(id)) {
+    ([&columns, &tokens](const crow::request& req, int64_t id) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+        if (!columns.ownedByUser(id, *userId)) {
             return errorResponse(404, "Column not found");
         }
+        columns.remove(id);
         return crow::response(204);
     });
 }

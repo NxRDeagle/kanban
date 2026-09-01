@@ -4,8 +4,6 @@ namespace kanban::repositories {
 
 namespace {
 
-constexpr int64_t kDemoOwnerId = 1;
-
 kanban::models::Board mapRow(SQLite::Statement& stmt) {
     kanban::models::Board board;
     board.id = stmt.getColumn(0).getInt64();
@@ -23,12 +21,15 @@ kanban::models::Board mapRow(SQLite::Statement& stmt) {
 
 BoardRepository::BoardRepository(kanban::db::Database& database) : db_(database) {}
 
-kanban::models::Board BoardRepository::create(const std::string& title, const std::optional<std::string>& description) {
+kanban::models::Board BoardRepository::create(
+    int64_t ownerId,
+    const std::string& title,
+    const std::optional<std::string>& description) {
     SQLite::Statement insertStmt(
         db_.handle(),
         "INSERT INTO boards (owner_id, title, description, created_at, updated_at) "
         "VALUES (?, ?, ?, datetime('now'), datetime('now'));");
-    insertStmt.bind(1, kDemoOwnerId);
+    insertStmt.bind(1, ownerId);
     insertStmt.bind(2, title);
     if (description.has_value()) {
         insertStmt.bind(3, *description);
@@ -47,11 +48,12 @@ kanban::models::Board BoardRepository::create(const std::string& title, const st
     return mapRow(selectStmt);
 }
 
-std::vector<kanban::models::Board> BoardRepository::getAll() {
+std::vector<kanban::models::Board> BoardRepository::getAllByOwner(int64_t ownerId) {
     std::vector<kanban::models::Board> boards;
     SQLite::Statement stmt(
         db_.handle(),
-        "SELECT id, owner_id, title, description, created_at, updated_at FROM boards ORDER BY id;");
+        "SELECT id, owner_id, title, description, created_at, updated_at FROM boards WHERE owner_id = ? ORDER BY id;");
+    stmt.bind(1, ownerId);
     while (stmt.executeStep()) {
         boards.push_back(mapRow(stmt));
     }
@@ -67,6 +69,11 @@ std::optional<kanban::models::Board> BoardRepository::getById(int64_t id) {
         return std::nullopt;
     }
     return mapRow(stmt);
+}
+
+bool BoardRepository::ownedBy(int64_t boardId, int64_t ownerId) {
+    auto board = getById(boardId);
+    return board.has_value() && board->ownerId == ownerId;
 }
 
 std::optional<kanban::models::Board> BoardRepository::update(int64_t id, const BoardUpdate& changes) {

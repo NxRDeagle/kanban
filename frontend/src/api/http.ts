@@ -1,4 +1,5 @@
 import type { ApiErrorResponse } from "./types";
+import { useAuthStore } from "../store/auth";
 
 export class ApiError extends Error {
   status: number;
@@ -9,6 +10,10 @@ export class ApiError extends Error {
   }
 }
 
+function isAuthPath(path: string): boolean {
+  return path === "/auth/login" || path === "/auth/register";
+}
+
 async function send(
   path: string,
   options: RequestInit = {},
@@ -16,6 +21,11 @@ async function send(
   const headers = new Headers(options.headers);
   if (options.body != null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+
+  const token = useAuthStore.getState().token;
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   return fetch(`/api${path}`, { ...options, headers });
@@ -33,6 +43,20 @@ function errorMessage(body: ApiErrorResponse | null): string {
   return body?.error ?? "Request failed";
 }
 
+function throwIfFailed(
+  path: string,
+  response: Response,
+  body: ApiErrorResponse | null,
+): void {
+  if (response.ok) {
+    return;
+  }
+  if (response.status === 401 && !isAuthPath(path)) {
+    useAuthStore.getState().logout();
+  }
+  throw new ApiError(response.status, errorMessage(body));
+}
+
 export async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -41,10 +65,7 @@ export async function request<T>(
   const body = await readJson<T>(response);
 
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      errorMessage(body as ApiErrorResponse | null),
-    );
+    throwIfFailed(path, response, body as ApiErrorResponse | null);
   }
 
   if (body === null) {
@@ -64,5 +85,5 @@ export async function requestNoContent(
   }
 
   const body = await readJson<ApiErrorResponse>(response);
-  throw new ApiError(response.status, errorMessage(body));
+  throwIfFailed(path, response, body);
 }

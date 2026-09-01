@@ -2,5 +2,5 @@
   "name": "kanban-backend",
   "version": "0.1.0",
   "builtin-baseline": "b1b19307e2d2ec1eefbdb7ea069de7d4bcd31f01",
-  "dependencies": ["crow", "sqlitecpp", "nlohmann-json"]
+  "dependencies": ["crow", "sqlitecpp", "nlohmann-json", "jwt-cpp", "libsodium"]
 }

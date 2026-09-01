@@ -27,6 +27,8 @@ public:
     std::optional<kanban::models::Task> update(int64_t id, const TaskUpdate& changes);
     bool remove(int64_t id);
     std::optional<kanban::models::Task> move(int64_t id, int64_t toColumnId, int toPosition);
+    bool ownedByUser(int64_t taskId, int64_t userId);
+    bool columnOwnedByUser(int64_t columnId, int64_t userId);
 
 private:
     kanban::db::Database& db_;

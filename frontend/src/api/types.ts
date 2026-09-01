@@ -37,3 +37,25 @@ export interface ApiColumnWithTasks extends ApiColumn {
 export interface ApiBoardWithColumns extends ApiBoard {
   columns: ApiColumnWithTasks[];
 }
+
+export interface ApiUser {
+  id: number;
+  email: string;
+  username: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiAuthResponse {
+  token: string;
+  user: ApiUser;
+}
+
+export interface RegisterInput extends LoginInput {
+  username: string;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}

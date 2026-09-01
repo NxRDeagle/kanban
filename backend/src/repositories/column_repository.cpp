@@ -114,4 +114,15 @@ bool ColumnRepository::remove(int64_t id) {
     return true;
 }
 
+bool ColumnRepository::ownedByUser(int64_t columnId, int64_t userId) {
+    SQLite::Statement stmt(
+        db_.handle(),
+        "SELECT 1 FROM board_columns c "
+        "INNER JOIN boards b ON b.id = c.board_id "
+        "WHERE c.id = ? AND b.owner_id = ?;");
+    stmt.bind(1, columnId);
+    stmt.bind(2, userId);
+    return stmt.executeStep();
+}
+
 }
