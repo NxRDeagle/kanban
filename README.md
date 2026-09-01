@@ -9,7 +9,7 @@
 ### Запуск
 1. cmake --build --preset default
 2. cd build
-.\kanban_server.exe
+3. .\kanban_server.exe
 ```
 Сервер слушает http://localhost:8080.
 Файл `kanban.db` создаётся в `backend/build`.
@@ -17,8 +17,8 @@
 $env:KANBAN_JWT_SECRET = "replace-me"
 ```
 
-3. cd frontend
-4. npm i
-5. npm run dev
+4. cd frontend
+5. npm i
+6. npm run dev
 ```
 Открыть http://localhost:5173.
