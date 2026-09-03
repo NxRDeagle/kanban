@@ -7,6 +7,7 @@ export interface ApiBoard {
   ownerId: number;
   title: string;
   description: string | null;
+  position: number;
   createdAt: string;
   updatedAt: string;
 }

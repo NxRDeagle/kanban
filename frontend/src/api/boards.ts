@@ -2,6 +2,7 @@ import type {
   Board,
   BoardWithColumns,
   CreateBoardInput,
+  ReorderBoardsInput,
   UpdateBoardInput,
 } from "../types";
 import { request, requestNoContent } from "./http";
@@ -39,4 +40,16 @@ export async function updateBoard(
 
 export async function deleteBoard(boardId: string): Promise<void> {
   await requestNoContent(`/boards/${boardId}`, { method: "DELETE" });
+}
+
+export async function reorderBoards(
+  input: ReorderBoardsInput,
+): Promise<Board[]> {
+  const boards = await request<ApiBoard[]>("/boards/reorder", {
+    method: "POST",
+    body: JSON.stringify({
+      orderedBoardIds: input.orderedBoardIds.map(Number),
+    }),
+  });
+  return boards.map(mapBoard);
 }

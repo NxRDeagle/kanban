@@ -1,8 +1,23 @@
 import { useState } from "react";
 import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
   useBoardsQuery,
   useCreateBoardMutation,
   useDeleteBoardMutation,
+  useReorderBoardsMutation,
   useUpdateBoardMutation,
 } from "../hooks/useBoards";
 import { BoardCard } from "../components/board/BoardCard";
@@ -10,6 +25,7 @@ import { BoardForm } from "../components/board/forms/BoardForm";
 import type { BoardFormValues } from "../components/board/forms/BoardForm";
 import { Modal } from "../components/common/Modal";
 import type { Board } from "../types";
+import { boardDndId, parseBoardDndId } from "../dnd/ids";
 import "./BoardsPage.css";
 
 export function BoardsPage() {
@@ -17,9 +33,16 @@ export function BoardsPage() {
   const createBoardMutation = useCreateBoardMutation();
   const updateBoardMutation = useUpdateBoardMutation();
   const deleteBoardMutation = useDeleteBoardMutation();
+  const reorderBoardsMutation = useReorderBoardsMutation();
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingBoard, setEditingBoard] = useState<Board | null>(null);
+  const [activeBoard, setActiveBoard] = useState<Board | null>(null);
+  const [isDraggingBoard, setIsDraggingBoard] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
   function handleCreate(values: BoardFormValues) {
     createBoardMutation.mutate(values, {
@@ -46,6 +69,36 @@ export function BoardsPage() {
     deleteBoardMutation.mutate(board.id);
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    if (!boards) return;
+    setIsDraggingBoard(true);
+    const boardId = parseBoardDndId(String(event.active.id));
+    setActiveBoard(boards.find((board) => board.id === boardId) ?? null);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setIsDraggingBoard(false);
+    setActiveBoard(null);
+    const { active, over } = event;
+    if (!over || !boards) return;
+
+    const activeBoardId = parseBoardDndId(String(active.id));
+    const overBoardId = parseBoardDndId(String(over.id));
+    if (!activeBoardId || !overBoardId || activeBoardId === overBoardId) {
+      return;
+    }
+
+    const oldIndex = boards.findIndex((board) => board.id === activeBoardId);
+    const newIndex = boards.findIndex((board) => board.id === overBoardId);
+    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+
+    reorderBoardsMutation.mutate({
+      orderedBoardIds: arrayMove(boards, oldIndex, newIndex).map(
+        (board) => board.id,
+      ),
+    });
+  }
+
   return (
     <div>
       <h1>Boards</h1>
@@ -66,16 +119,42 @@ export function BoardsPage() {
       {isLoading && <p>Loading…</p>}
       {isError && <p>Something went wrong loading boards.</p>}
       {boards && (
-        <div className="boards-grid">
-          {boards.map((board) => (
-            <BoardCard
-              key={board.id}
-              board={board}
-              onEdit={setEditingBoard}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={boards.map((board) => boardDndId(board.id))}
+            strategy={rectSortingStrategy}
+          >
+            <div className="boards-grid">
+              {boards.map((board) => (
+                <BoardCard
+                  key={board.id}
+                  board={board}
+                  onEdit={setEditingBoard}
+                  onDelete={handleDelete}
+                  isDraggingBoard={isDraggingBoard}
+                />
+              ))}
+            </div>
+          </SortableContext>
+
+          <DragOverlay>
+            {activeBoard && (
+              <div className="board-card board-card-overlay">
+                <h3 className="board-card-title">{activeBoard.title}</h3>
+                {activeBoard.description && (
+                  <p className="board-card-description">
+                    {activeBoard.description}
+                  </p>
+                )}
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
       )}
 
       <Modal

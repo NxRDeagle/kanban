@@ -12,6 +12,7 @@ find_package(jwt-cpp CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 
 file(READ ${CMAKE_SOURCE_DIR}/src/db/migrations/0001_init.sql INIT_SQL_CONTENT)
+file(READ ${CMAKE_SOURCE_DIR}/src/db/migrations/0002_board_position.sql MIGRATION_0002_SQL)
 configure_file(
     ${CMAKE_SOURCE_DIR}/src/db/embedded_schema.hpp.in
     ${CMAKE_BINARY_DIR}/generated/embedded_schema.hpp

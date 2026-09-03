@@ -11,6 +11,7 @@ struct Board {
     int64_t ownerId = 0;
     std::string title;
     std::optional<std::string> description;
+    int position = 0;
     std::string createdAt;
     std::string updatedAt;
 };
@@ -21,6 +22,7 @@ inline nlohmann::json to_json(const Board& board) {
         {"ownerId", board.ownerId},
         {"title", board.title},
         {"description", board.description.has_value() ? nlohmann::json(*board.description) : nlohmann::json(nullptr)},
+        {"position", board.position},
         {"createdAt", board.createdAt},
         {"updatedAt", board.updatedAt},
     };

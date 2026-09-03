@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <vector>
 
 // Переопределение макроса от винды, тк он ломает crow::HTTPMethod::DELETE.
 #ifdef DELETE
@@ -63,6 +64,37 @@ void registerBoardRoutes(
 
         auto board = boardRepository.create(*userId, body["title"].get<std::string>(), description);
         return jsonResponse(201, kanban::models::to_json(board));
+    });
+
+    CROW_ROUTE(app, "/api/boards/reorder").methods(crow::HTTPMethod::POST)
+    ([&boardRepository, &tokens](const crow::request& req) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+
+        auto body = nlohmann::json::parse(req.body, nullptr, false);
+        if (body.is_discarded() || !body.contains("orderedBoardIds") || !body["orderedBoardIds"].is_array()) {
+            return errorResponse(400, "orderedBoardIds is required");
+        }
+
+        std::vector<int64_t> orderedIds;
+        for (const auto& value : body["orderedBoardIds"]) {
+            if (!value.is_number_integer() && !value.is_number_unsigned()) {
+                return errorResponse(400, "orderedBoardIds must be an array of integers");
+            }
+            orderedIds.push_back(value.get<int64_t>());
+        }
+
+        if (!boardRepository.reorder(*userId, orderedIds)) {
+            return errorResponse(400, "orderedBoardIds must match all of your boards");
+        }
+
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& board : boardRepository.getAllByOwner(*userId)) {
+            arr.push_back(kanban::models::to_json(board));
+        }
+        return jsonResponse(200, arr);
     });
 
     CROW_ROUTE(app, "/api/boards/<int>").methods(crow::HTTPMethod::GET)

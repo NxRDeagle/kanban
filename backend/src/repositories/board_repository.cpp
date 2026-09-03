@@ -1,5 +1,7 @@
 #include "board_repository.hpp"
 
+#include <set>
+
 namespace kanban::repositories {
 
 namespace {
@@ -14,7 +16,17 @@ kanban::models::Board mapRow(SQLite::Statement& stmt) {
         : std::optional<std::string>(stmt.getColumn(3).getString());
     board.createdAt = stmt.getColumn(4).getString();
     board.updatedAt = stmt.getColumn(5).getString();
+    board.position = stmt.getColumn(6).getInt();
     return board;
+}
+
+void setPositions(SQLite::Database& db, const std::vector<int64_t>& ids) {
+    for (size_t i = 0; i < ids.size(); ++i) {
+        SQLite::Statement updateStmt(db, "UPDATE boards SET position = ? WHERE id = ?;");
+        updateStmt.bind(1, static_cast<int64_t>(i));
+        updateStmt.bind(2, ids[i]);
+        updateStmt.exec();
+    }
 }
 
 }
@@ -25,10 +37,15 @@ kanban::models::Board BoardRepository::create(
     int64_t ownerId,
     const std::string& title,
     const std::optional<std::string>& description) {
+    SQLite::Statement countStmt(db_.handle(), "SELECT COUNT(*) FROM boards WHERE owner_id = ?;");
+    countStmt.bind(1, ownerId);
+    countStmt.executeStep();
+    const int64_t position = countStmt.getColumn(0).getInt64();
+
     SQLite::Statement insertStmt(
         db_.handle(),
-        "INSERT INTO boards (owner_id, title, description, created_at, updated_at) "
-        "VALUES (?, ?, ?, datetime('now'), datetime('now'));");
+        "INSERT INTO boards (owner_id, title, description, position, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, datetime('now'), datetime('now'));");
     insertStmt.bind(1, ownerId);
     insertStmt.bind(2, title);
     if (description.has_value()) {
@@ -36,23 +53,18 @@ kanban::models::Board BoardRepository::create(
     } else {
         insertStmt.bind(3);
     }
+    insertStmt.bind(4, position);
     insertStmt.exec();
 
-    const int64_t newId = db_.handle().getLastInsertRowid();
-
-    SQLite::Statement selectStmt(
-        db_.handle(),
-        "SELECT id, owner_id, title, description, created_at, updated_at FROM boards WHERE id = ?;");
-    selectStmt.bind(1, newId);
-    selectStmt.executeStep();
-    return mapRow(selectStmt);
+    return *getById(db_.handle().getLastInsertRowid());
 }
 
 std::vector<kanban::models::Board> BoardRepository::getAllByOwner(int64_t ownerId) {
     std::vector<kanban::models::Board> boards;
     SQLite::Statement stmt(
         db_.handle(),
-        "SELECT id, owner_id, title, description, created_at, updated_at FROM boards WHERE owner_id = ? ORDER BY id;");
+        "SELECT id, owner_id, title, description, created_at, updated_at, position "
+        "FROM boards WHERE owner_id = ? ORDER BY position, id;");
     stmt.bind(1, ownerId);
     while (stmt.executeStep()) {
         boards.push_back(mapRow(stmt));
@@ -63,7 +75,8 @@ std::vector<kanban::models::Board> BoardRepository::getAllByOwner(int64_t ownerI
 std::optional<kanban::models::Board> BoardRepository::getById(int64_t id) {
     SQLite::Statement stmt(
         db_.handle(),
-        "SELECT id, owner_id, title, description, created_at, updated_at FROM boards WHERE id = ?;");
+        "SELECT id, owner_id, title, description, created_at, updated_at, position "
+        "FROM boards WHERE id = ?;");
     stmt.bind(1, id);
     if (!stmt.executeStep()) {
         return std::nullopt;
@@ -111,10 +124,51 @@ std::optional<kanban::models::Board> BoardRepository::update(int64_t id, const B
 }
 
 bool BoardRepository::remove(int64_t id) {
-    SQLite::Statement stmt(db_.handle(), "DELETE FROM boards WHERE id = ?;");
-    stmt.bind(1, id);
-    stmt.exec();
-    return db_.handle().getChanges() > 0;
+    SQLite::Statement findStmt(db_.handle(), "SELECT owner_id FROM boards WHERE id = ?;");
+    findStmt.bind(1, id);
+    if (!findStmt.executeStep()) {
+        return false;
+    }
+    const int64_t ownerId = findStmt.getColumn(0).getInt64();
+
+    SQLite::Transaction transaction(db_.handle());
+
+    SQLite::Statement deleteStmt(db_.handle(), "DELETE FROM boards WHERE id = ?;");
+    deleteStmt.bind(1, id);
+    deleteStmt.exec();
+
+    SQLite::Statement remainingStmt(
+        db_.handle(), "SELECT id FROM boards WHERE owner_id = ? ORDER BY position, id;");
+    remainingStmt.bind(1, ownerId);
+    std::vector<int64_t> remainingIds;
+    while (remainingStmt.executeStep()) {
+        remainingIds.push_back(remainingStmt.getColumn(0).getInt64());
+    }
+    setPositions(db_.handle(), remainingIds);
+
+    transaction.commit();
+    return true;
+}
+
+bool BoardRepository::reorder(int64_t ownerId, const std::vector<int64_t>& orderedIds) {
+    const auto existing = getAllByOwner(ownerId);
+    if (existing.size() != orderedIds.size()) {
+        return false;
+    }
+
+    std::set<int64_t> existingIds;
+    for (const auto& board : existing) {
+        existingIds.insert(board.id);
+    }
+    std::set<int64_t> requestedIds(orderedIds.begin(), orderedIds.end());
+    if (existingIds != requestedIds) {
+        return false;
+    }
+
+    SQLite::Transaction transaction(db_.handle());
+    setPositions(db_.handle(), orderedIds);
+    transaction.commit();
+    return true;
 }
 
 }

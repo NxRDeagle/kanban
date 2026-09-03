@@ -12,24 +12,70 @@
 .column-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+}
+
+.column-drag-handle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: grab;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.column:hover .column-drag-handle,
+.column-dragging .column-drag-handle {
+  opacity: 0.55;
+}
+
+.column-drag-handle:hover {
+  opacity: 0.85;
+  background: var(--bg);
+}
+
+.column-drag-handle:active {
+  cursor: grabbing;
 }
 
 .column-title {
   margin: 0;
   font-size: 15px;
+  flex: 1;
+  min-width: 0;
 }
 
 .column-actions {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .column-actions button {
   font-size: 12px;
   padding: 2px 6px;
+  cursor: pointer;
+}
+
+.column-overlay {
+  box-shadow: var(--shadow);
+  rotate: 2deg;
+  cursor: grabbing;
+}
+
+.column-dragging {
+  opacity: 0.4;
 }
 
 .column-tasks {

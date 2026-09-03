@@ -1,5 +1,6 @@
 #include "column_repository.hpp"
 
+#include <set>
 #include <vector>
 
 namespace kanban::repositories {
@@ -110,6 +111,32 @@ bool ColumnRepository::remove(int64_t id) {
         updateStmt.exec();
     }
 
+    transaction.commit();
+    return true;
+}
+
+bool ColumnRepository::reorder(int64_t boardId, const std::vector<int64_t>& orderedIds) {
+    const auto existing = getByBoardId(boardId);
+    if (existing.size() != orderedIds.size()) {
+        return false;
+    }
+
+    std::set<int64_t> existingIds;
+    for (const auto& column : existing) {
+        existingIds.insert(column.id);
+    }
+    std::set<int64_t> requestedIds(orderedIds.begin(), orderedIds.end());
+    if (existingIds != requestedIds) {
+        return false;
+    }
+
+    SQLite::Transaction transaction(db_.handle());
+    for (size_t i = 0; i < orderedIds.size(); ++i) {
+        SQLite::Statement updateStmt(db_.handle(), "UPDATE board_columns SET position = ? WHERE id = ?;");
+        updateStmt.bind(1, static_cast<int64_t>(i));
+        updateStmt.bind(2, orderedIds[i]);
+        updateStmt.exec();
+    }
     transaction.commit();
     return true;
 }

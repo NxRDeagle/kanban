@@ -1,6 +1,7 @@
 #include "column_routes.hpp"
 
 #include <nlohmann/json.hpp>
+#include <vector>
 
 // Переопределение макроса от винды, тк он ломает crow::HTTPMethod::DELETE.
 #ifdef DELETE
@@ -48,6 +49,40 @@ void registerColumnRoutes(
             return errorResponse(404, "Board not found");
         }
         return jsonResponse(201, kanban::models::to_json(*column));
+    });
+
+    CROW_ROUTE(app, "/api/boards/<int>/columns/reorder").methods(crow::HTTPMethod::POST)
+    ([&columns, &boards, &tokens](const crow::request& req, int64_t boardId) {
+        auto userId = tokens.userIdFrom(req);
+        if (!userId.has_value()) {
+            return errorResponse(401, "Unauthorized");
+        }
+        if (!boards.ownedBy(boardId, *userId)) {
+            return errorResponse(404, "Board not found");
+        }
+
+        auto body = nlohmann::json::parse(req.body, nullptr, false);
+        if (body.is_discarded() || !body.contains("orderedColumnIds") || !body["orderedColumnIds"].is_array()) {
+            return errorResponse(400, "orderedColumnIds is required");
+        }
+
+        std::vector<int64_t> orderedIds;
+        for (const auto& value : body["orderedColumnIds"]) {
+            if (!value.is_number_integer() && !value.is_number_unsigned()) {
+                return errorResponse(400, "orderedColumnIds must be an array of integers");
+            }
+            orderedIds.push_back(value.get<int64_t>());
+        }
+
+        if (!columns.reorder(boardId, orderedIds)) {
+            return errorResponse(400, "orderedColumnIds must match all columns on this board");
+        }
+
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& column : columns.getByBoardId(boardId)) {
+            arr.push_back(kanban::models::to_json(column));
+        }
+        return jsonResponse(200, arr);
     });
 
     CROW_ROUTE(app, "/api/columns/<int>").methods(crow::HTTPMethod::PATCH)

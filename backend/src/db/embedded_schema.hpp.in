@@ -3,5 +3,6 @@
 namespace kanban::db {
 
 inline constexpr const char* kInitSql = R"SQL(@INIT_SQL_CONTENT@)SQL";
+inline constexpr const char* kMigration0002Sql = R"SQL(@MIGRATION_0002_SQL@)SQL";
 
 }

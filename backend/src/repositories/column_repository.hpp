@@ -18,6 +18,7 @@ public:
     std::vector<kanban::models::BoardColumn> getByBoardId(int64_t boardId);
     std::optional<kanban::models::BoardColumn> update(int64_t id, const std::string& title);
     bool remove(int64_t id);
+    bool reorder(int64_t boardId, const std::vector<int64_t>& orderedIds);
     bool ownedByUser(int64_t columnId, int64_t userId);
 
 private:

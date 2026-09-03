@@ -27,6 +27,7 @@ public:
     bool ownedBy(int64_t boardId, int64_t ownerId);
     std::optional<kanban::models::Board> update(int64_t id, const BoardUpdate& changes);
     bool remove(int64_t id);
+    bool reorder(int64_t ownerId, const std::vector<int64_t>& orderedIds);
 
 private:
     kanban::db::Database& db_;

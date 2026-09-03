@@ -1,14 +1,20 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Task } from "../../types";
+import { taskDndId } from "../../dnd/ids";
 import "./TaskCard.css";
 
 interface TaskCardProps {
   task: Task;
   onClick: (task: Task) => void;
+  dragDisabled?: boolean;
 }
 
-export function TaskCard({ task, onClick }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onClick,
+  dragDisabled = false,
+}: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -17,7 +23,8 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
     transition,
     isDragging,
   } = useSortable({
-    id: task.id,
+    id: taskDndId(task.id),
+    disabled: dragDisabled,
   });
 
   const style = {

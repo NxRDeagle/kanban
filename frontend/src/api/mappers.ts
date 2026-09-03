@@ -20,6 +20,7 @@ export function mapBoard(board: ApiBoard): Board {
     ownerId: String(board.ownerId),
     title: board.title,
     description: board.description,
+    position: board.position,
     createdAt: board.createdAt,
     updatedAt: board.updatedAt,
   };

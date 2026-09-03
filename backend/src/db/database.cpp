@@ -15,6 +15,28 @@ SQLite::Database& Database::handle() {
     return db_;
 }
 
+namespace {
+
+bool hasMigration(SQLite::Database& db, int version) {
+    SQLite::Statement checkStmt(db, "SELECT COUNT(*) FROM schema_migrations WHERE version = ?;");
+    checkStmt.bind(1, version);
+    checkStmt.executeStep();
+    return checkStmt.getColumn(0).getInt() > 0;
+}
+
+void applyMigration(SQLite::Database& db, int version, const char* sql, const char* name) {
+    SQLite::Transaction transaction(db);
+    db.exec(sql);
+    SQLite::Statement insertStmt(
+        db, "INSERT INTO schema_migrations (version, applied_at) VALUES (?, datetime('now'));");
+    insertStmt.bind(1, version);
+    insertStmt.exec();
+    transaction.commit();
+    std::cout << name << " applied.\n";
+}
+
+}
+
 void Database::runMigrations() {
     db_.exec(
         "CREATE TABLE IF NOT EXISTS schema_migrations ("
@@ -22,20 +44,16 @@ void Database::runMigrations() {
         "  applied_at TEXT NOT NULL"
         ");");
 
-    SQLite::Statement checkStmt(db_, "SELECT COUNT(*) FROM schema_migrations WHERE version = 1;");
-    checkStmt.executeStep();
-    const bool alreadyApplied = checkStmt.getColumn(0).getInt() > 0;
-
-    if (!alreadyApplied) {
-        SQLite::Transaction transaction(db_);
-        db_.exec(kInitSql);
-        SQLite::Statement insertStmt(
-            db_, "INSERT INTO schema_migrations (version, applied_at) VALUES (1, datetime('now'));");
-        insertStmt.exec();
-        transaction.commit();
-        std::cout << "Migration 0001_init applied.\n";
+    if (!hasMigration(db_, 1)) {
+        applyMigration(db_, 1, kInitSql, "Migration 0001_init");
     } else {
         std::cout << "Migration 0001_init already applied.\n";
+    }
+
+    if (!hasMigration(db_, 2)) {
+        applyMigration(db_, 2, kMigration0002Sql, "Migration 0002_board_position");
+    } else {
+        std::cout << "Migration 0002_board_position already applied.\n";
     }
 
     SQLite::Statement tablesStmt(

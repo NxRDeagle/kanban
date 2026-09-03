@@ -1,3 +1,12 @@
+.board-card-sortable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.board-card-sortable:active {
+  cursor: grabbing;
+}
+
 .board-card {
   display: block;
   padding: 16px;
@@ -10,6 +19,13 @@
 
 .board-card:hover {
   box-shadow: var(--shadow);
+}
+
+.board-card-overlay {
+  cursor: grabbing;
+  box-shadow: var(--shadow);
+  rotate: 2deg;
+  background: var(--bg);
 }
 
 .board-card-header {
@@ -34,6 +50,7 @@
 .board-card-actions button {
   font-size: 12px;
   padding: 2px 6px;
+  cursor: pointer;
 }
 
 .board-card-description {

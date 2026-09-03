@@ -4,9 +4,10 @@ import {
   deleteBoard,
   getBoard,
   getBoards,
+  reorderBoards,
   updateBoard,
 } from "../api/boards";
-import type { UpdateBoardInput } from "../types";
+import type { Board, ReorderBoardsInput, UpdateBoardInput } from "../types";
 import { boardsKeys } from "../api/queryKeys";
 
 export function useBoardsQuery() {
@@ -54,6 +55,46 @@ export function useDeleteBoardMutation() {
   return useMutation({
     mutationFn: deleteBoard,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: boardsKeys.all });
+    },
+  });
+}
+
+function applyOptimisticBoardReorder(
+  boards: Board[],
+  orderedBoardIds: string[],
+): Board[] {
+  const byId = new Map(boards.map((board) => [board.id, board]));
+  return orderedBoardIds.flatMap((id, index) => {
+    const board = byId.get(id);
+    return board ? [{ ...board, position: index }] : [];
+  });
+}
+
+export function useReorderBoardsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReorderBoardsInput) => reorderBoards(input),
+    onMutate: async ({ orderedBoardIds }) => {
+      await queryClient.cancelQueries({ queryKey: boardsKeys.all });
+      const previous = queryClient.getQueryData<Board[]>(boardsKeys.all);
+      if (previous) {
+        queryClient.setQueryData(
+          boardsKeys.all,
+          applyOptimisticBoardReorder(previous, orderedBoardIds),
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(boardsKeys.all, context.previous);
+      }
+    },
+    onSuccess: (boards) => {
+      queryClient.setQueryData(boardsKeys.all, boards);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: boardsKeys.all });
     },
   });

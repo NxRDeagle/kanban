@@ -11,6 +11,7 @@ export interface Board {
   ownerId: string;
   title: string;
   description: string | null;
+  position: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +58,10 @@ export type UpdateColumnInput = Partial<CreateColumnInput>;
 
 export interface ReorderColumnsInput {
   orderedColumnIds: string[];
+}
+
+export interface ReorderBoardsInput {
+  orderedBoardIds: string[];
 }
 
 export interface CreateTaskInput {
