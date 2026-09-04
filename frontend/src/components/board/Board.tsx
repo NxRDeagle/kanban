@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   PointerSensor,
   closestCorners,
   useSensor,
@@ -10,6 +12,7 @@ import {
 import type {
   CollisionDetection,
   DragEndEvent,
+  DragOverEvent,
   DragStartEvent,
 } from "@dnd-kit/core";
 import {
@@ -42,6 +45,17 @@ import {
   parseColumnSortableId,
   parseTaskDndId,
 } from "../../dnd/ids";
+import {
+  DND_TRANSITION_MS,
+  dropAnimation,
+  isSameDropTarget,
+} from "../../dnd/config";
+import {
+  applyOptimisticTaskMove,
+  resolveTaskMoveInput,
+  wouldTaskMoveChange,
+} from "../../dnd/taskMove";
+import { boardsKeys } from "../../api/queryKeys";
 import "./Board.css";
 
 interface BoardProps {
@@ -88,6 +102,7 @@ const collisionDetection: CollisionDetection = (args) => {
 };
 
 export function Board({ board }: BoardProps) {
+  const queryClient = useQueryClient();
   const { id: boardId, description: boardDescription, columns } = board;
   const createColumnMutation = useCreateColumnMutation(boardId);
   const updateColumnMutation = useUpdateColumnMutation(boardId);
@@ -185,32 +200,84 @@ export function Board({ board }: BoardProps) {
     setActiveTask(null);
   }
 
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveTask(null);
-    setActiveColumn(null);
+  function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
-    if (!over) return;
+    if (!over || isSameDropTarget(active.id, over.id)) return;
 
     const activeId = String(active.id);
     const overId = String(over.id);
 
     const activeColumnId = parseColumnSortableId(activeId);
     if (activeColumnId) {
-      const overColumnId = resolveColumnTargetId(overId, columns);
+      queryClient.setQueryData<BoardWithColumns>(
+        boardsKeys.detail(boardId),
+        (current) => {
+          if (!current) return current;
+          const overColumnId = resolveColumnTargetId(overId, current.columns);
+          if (!overColumnId || activeColumnId === overColumnId) return current;
+
+          const oldIndex = current.columns.findIndex(
+            (column) => column.id === activeColumnId,
+          );
+          const newIndex = current.columns.findIndex(
+            (column) => column.id === overColumnId,
+          );
+          if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
+            return current;
+          }
+
+          return {
+            ...current,
+            columns: arrayMove(current.columns, oldIndex, newIndex).map(
+              (column, index) => ({ ...column, position: index }),
+            ),
+          };
+        },
+      );
+      return;
+    }
+
+    const activeTaskId = parseTaskDndId(activeId);
+    if (!activeTaskId) return;
+
+    queryClient.setQueryData<BoardWithColumns>(
+      boardsKeys.detail(boardId),
+      (current) => {
+        if (!current) return current;
+        const moveInput = resolveTaskMoveInput(current, activeTaskId, overId);
+        if (
+          !moveInput ||
+          !wouldTaskMoveChange(current, activeTaskId, moveInput)
+        ) {
+          return current;
+        }
+        return applyOptimisticTaskMove(current, activeTaskId, moveInput);
+      },
+    );
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    window.setTimeout(() => {
+      setActiveTask(null);
+      setActiveColumn(null);
+    }, DND_TRANSITION_MS);
+
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const currentBoard =
+      queryClient.getQueryData<BoardWithColumns>(boardsKeys.detail(boardId)) ??
+      board;
+
+    const activeColumnId = parseColumnSortableId(activeId);
+    if (activeColumnId) {
+      const overColumnId = resolveColumnTargetId(overId, currentBoard.columns);
       if (!overColumnId || activeColumnId === overColumnId) return;
 
-      const oldIndex = columns.findIndex(
-        (column) => column.id === activeColumnId,
-      );
-      const newIndex = columns.findIndex(
-        (column) => column.id === overColumnId,
-      );
-      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
-
       reorderColumnsMutation.mutate({
-        orderedColumnIds: arrayMove(columns, oldIndex, newIndex).map(
-          (column) => column.id,
-        ),
+        orderedColumnIds: currentBoard.columns.map((column) => column.id),
       });
       return;
     }
@@ -218,40 +285,24 @@ export function Board({ board }: BoardProps) {
     const activeTaskId = parseTaskDndId(activeId);
     if (!activeTaskId) return;
 
-    const sourceColumn = findColumnByTaskId(activeTaskId);
-    if (!sourceColumn) return;
+    const moveInput = resolveTaskMoveInput(currentBoard, activeTaskId, overId);
+    if (!moveInput) return;
 
-    const overColumnId = parseColumnDroppableId(overId);
-    let toColumnId: string;
-    let toPosition: number;
-
-    if (overColumnId) {
-      const overColumn = columns.find((column) => column.id === overColumnId);
-      if (!overColumn) return;
-      toColumnId = overColumn.id;
-      toPosition = overColumn.tasks.filter((t) => t.id !== activeTaskId).length;
-    } else {
-      const overTaskId = parseTaskDndId(overId);
-      if (!overTaskId || overTaskId === activeTaskId) return;
-      const overTaskColumn = findColumnByTaskId(overTaskId);
-      if (!overTaskColumn) return;
-      toColumnId = overTaskColumn.id;
-      toPosition = overTaskColumn.tasks
-        .filter((t) => t.id !== activeTaskId)
-        .findIndex((t) => t.id === overTaskId);
-      if (toPosition < 0) return;
-    }
-
+    const sourceColumn = currentBoard.columns.find((column) =>
+      column.tasks.some((task) => task.id === activeTaskId),
+    );
     if (
-      sourceColumn.id === toColumnId &&
-      sourceColumn.tasks.findIndex((t) => t.id === activeTaskId) === toPosition
+      sourceColumn &&
+      sourceColumn.id === moveInput.toColumnId &&
+      sourceColumn.tasks.findIndex((task) => task.id === activeTaskId) ===
+        moveInput.toPosition
     ) {
       return;
     }
 
     moveTaskMutation.mutate({
       taskId: activeTaskId,
-      input: { toColumnId, toPosition },
+      input: moveInput,
     });
   }
 
@@ -265,7 +316,11 @@ export function Board({ board }: BoardProps) {
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
+        measuring={{
+          droppable: { strategy: MeasuringStrategy.Always },
+        }}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="board-columns">
@@ -302,7 +357,7 @@ export function Board({ board }: BoardProps) {
           </div>
         </div>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={dropAnimation}>
           {activeTask && (
             <div className="task-card task-card-overlay">
               <p className="task-card-title">{activeTask.title}</p>

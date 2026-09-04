@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Task } from "../../types";
 import { taskDndId } from "../../dnd/ids";
+import { animateLayoutChanges, sortableTransition } from "../../dnd/config";
 import "./TaskCard.css";
 
 interface TaskCardProps {
@@ -25,12 +26,14 @@ export function TaskCard({
   } = useSortable({
     id: taskDndId(task.id),
     disabled: dragDisabled,
+    animateLayoutChanges,
+    transition: sortableTransition,
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.35 : 1,
   };
 
   return (

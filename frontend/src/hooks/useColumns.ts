@@ -103,8 +103,5 @@ export function useReorderColumnsMutation(boardId: string) {
         },
       );
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: boardsKeys.detail(boardId) });
-    },
   });
 }

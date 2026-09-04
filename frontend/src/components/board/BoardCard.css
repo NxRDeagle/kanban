@@ -1,6 +1,7 @@
 .board-card-sortable {
   cursor: grab;
   touch-action: none;
+  will-change: transform;
 }
 
 .board-card-sortable:active {

@@ -13,6 +13,7 @@ import {
   parseColumnSortableId,
   taskDndId,
 } from "../../dnd/ids";
+import { animateLayoutChanges, sortableTransition } from "../../dnd/config";
 import { TaskCard } from "./TaskCard";
 import { TaskForm } from "./forms/TaskForm";
 import type { TaskFormValues } from "./forms/TaskForm";
@@ -56,6 +57,8 @@ export function Column({
     isDragging,
   } = useSortable({
     id: columnSortableId(column.id),
+    animateLayoutChanges,
+    transition: sortableTransition,
   });
 
   function handleAddTask(values: TaskFormValues) {
@@ -66,7 +69,7 @@ export function Column({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.35 : 1,
   };
 
   return (

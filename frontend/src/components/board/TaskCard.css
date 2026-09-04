@@ -11,6 +11,7 @@
   border-radius: 6px;
   background: var(--bg);
   color: inherit;
+  will-change: transform;
 }
 
 .task-card:hover {

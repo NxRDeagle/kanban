@@ -6,10 +6,7 @@
   },
   "ExpandedNodes": [
     "",
-    "\\src",
-    "\\src\\db",
     "\\src\\db\\migrations",
-    "\\src\\models",
     "\\src\\repositories",
     "\\src\\routes",
     "\\tools"

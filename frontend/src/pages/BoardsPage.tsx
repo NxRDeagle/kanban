@@ -1,13 +1,19 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   PointerSensor,
   closestCenter,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import type {
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+} from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
@@ -26,9 +32,16 @@ import type { BoardFormValues } from "../components/board/forms/BoardForm";
 import { Modal } from "../components/common/Modal";
 import type { Board } from "../types";
 import { boardDndId, parseBoardDndId } from "../dnd/ids";
+import {
+  DND_TRANSITION_MS,
+  dropAnimation,
+  isSameDropTarget,
+} from "../dnd/config";
+import { boardsKeys } from "../api/queryKeys";
 import "./BoardsPage.css";
 
 export function BoardsPage() {
+  const queryClient = useQueryClient();
   const { data: boards, isLoading, isError } = useBoardsQuery();
   const createBoardMutation = useCreateBoardMutation();
   const updateBoardMutation = useUpdateBoardMutation();
@@ -76,11 +89,31 @@ export function BoardsPage() {
     setActiveBoard(boards.find((board) => board.id === boardId) ?? null);
   }
 
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    if (!over || isSameDropTarget(active.id, over.id)) return;
+
+    const activeBoardId = parseBoardDndId(String(active.id));
+    const overBoardId = parseBoardDndId(String(over.id));
+    if (!activeBoardId || !overBoardId) return;
+
+    queryClient.setQueryData<Board[]>(boardsKeys.all, (items) => {
+      if (!items) return items;
+      const oldIndex = items.findIndex((board) => board.id === activeBoardId);
+      const newIndex = items.findIndex((board) => board.id === overBoardId);
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return items;
+      return arrayMove(items, oldIndex, newIndex).map((board, index) => ({
+        ...board,
+        position: index,
+      }));
+    });
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setIsDraggingBoard(false);
-    setActiveBoard(null);
+    window.setTimeout(() => setActiveBoard(null), DND_TRANSITION_MS);
     const { active, over } = event;
-    if (!over || !boards) return;
+    if (!over) return;
 
     const activeBoardId = parseBoardDndId(String(active.id));
     const overBoardId = parseBoardDndId(String(over.id));
@@ -88,14 +121,11 @@ export function BoardsPage() {
       return;
     }
 
-    const oldIndex = boards.findIndex((board) => board.id === activeBoardId);
-    const newIndex = boards.findIndex((board) => board.id === overBoardId);
-    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+    const currentBoards = queryClient.getQueryData<Board[]>(boardsKeys.all);
+    if (!currentBoards) return;
 
     reorderBoardsMutation.mutate({
-      orderedBoardIds: arrayMove(boards, oldIndex, newIndex).map(
-        (board) => board.id,
-      ),
+      orderedBoardIds: currentBoards.map((board) => board.id),
     });
   }
 
@@ -122,7 +152,11 @@ export function BoardsPage() {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          measuring={{
+            droppable: { strategy: MeasuringStrategy.Always },
+          }}
           onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
           <SortableContext
@@ -142,7 +176,7 @@ export function BoardsPage() {
             </div>
           </SortableContext>
 
-          <DragOverlay>
+          <DragOverlay dropAnimation={dropAnimation}>
             {activeBoard && (
               <div className="board-card board-card-overlay">
                 <h3 className="board-card-title">{activeBoard.title}</h3>

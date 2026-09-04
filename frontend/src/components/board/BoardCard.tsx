@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Board } from "../../types";
 import { boardDndId } from "../../dnd/ids";
+import { animateLayoutChanges, sortableTransition } from "../../dnd/config";
 import "./BoardCard.css";
 
 interface BoardCardProps {
@@ -28,6 +29,8 @@ export function BoardCard({
     isDragging,
   } = useSortable({
     id: boardDndId(board.id),
+    animateLayoutChanges,
+    transition: sortableTransition,
   });
 
   function handleEdit(event: MouseEvent) {
@@ -45,7 +48,7 @@ export function BoardCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.35 : 1,
   };
 
   return (

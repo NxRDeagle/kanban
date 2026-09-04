@@ -94,8 +94,5 @@ export function useReorderBoardsMutation() {
     onSuccess: (boards) => {
       queryClient.setQueryData(boardsKeys.all, boards);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: boardsKeys.all });
-    },
   });
 }
