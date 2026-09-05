@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -11,7 +11,6 @@ import {
 } from "@dnd-kit/core";
 import type {
   CollisionDetection,
-  DragEndEvent,
   DragOverEvent,
   DragStartEvent,
 } from "@dnd-kit/core";
@@ -123,6 +122,12 @@ export function Board({ board }: BoardProps) {
   const [activeColumn, setActiveColumn] = useState<ColumnWithTasks | null>(
     null,
   );
+  const dragStartColumnIdsRef = useRef<string[] | null>(null);
+  const dragStartTaskRef = useRef<{
+    taskId: string;
+    columnId: string;
+    position: number;
+  } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -185,17 +190,45 @@ export function Board({ board }: BoardProps) {
     });
   }
 
+  function restoreColumnOrder(orderedIds: string[]) {
+    queryClient.setQueryData<BoardWithColumns>(
+      boardsKeys.detail(boardId),
+      (current) => {
+        if (!current) return current;
+        const byId = new Map(
+          current.columns.map((column) => [column.id, column]),
+        );
+        return {
+          ...current,
+          columns: orderedIds.flatMap((id, index) => {
+            const column = byId.get(id);
+            return column ? [{ ...column, position: index }] : [];
+          }),
+        };
+      },
+    );
+  }
+
   function handleDragStart(event: DragStartEvent) {
     const activeId = String(event.active.id);
     const taskId = parseTaskDndId(activeId);
     if (taskId) {
       const column = findColumnByTaskId(taskId);
+      const position =
+        column?.tasks.findIndex((task) => task.id === taskId) ?? -1;
+      dragStartTaskRef.current =
+        column && position >= 0
+          ? { taskId, columnId: column.id, position }
+          : null;
+      dragStartColumnIdsRef.current = null;
       setActiveTask(column?.tasks.find((t) => t.id === taskId) ?? null);
       setActiveColumn(null);
       return;
     }
 
     const columnId = parseColumnSortableId(activeId);
+    dragStartColumnIdsRef.current = columns.map((column) => column.id);
+    dragStartTaskRef.current = null;
     setActiveColumn(columns.find((column) => column.id === columnId) ?? null);
     setActiveTask(null);
   }
@@ -256,54 +289,86 @@ export function Board({ board }: BoardProps) {
     );
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  function finishBoardItemDrag(cancelled: boolean) {
     window.setTimeout(() => {
       setActiveTask(null);
       setActiveColumn(null);
     }, DND_TRANSITION_MS);
 
-    const { active, over } = event;
-    if (!over) return;
+    const startColumnIds = dragStartColumnIdsRef.current;
+    const startTask = dragStartTaskRef.current;
+    dragStartColumnIdsRef.current = null;
+    dragStartTaskRef.current = null;
 
-    const activeId = String(active.id);
-    const overId = String(over.id);
-    const currentBoard =
-      queryClient.getQueryData<BoardWithColumns>(boardsKeys.detail(boardId)) ??
-      board;
+    const currentBoard = queryClient.getQueryData<BoardWithColumns>(
+      boardsKeys.detail(boardId),
+    );
 
-    const activeColumnId = parseColumnSortableId(activeId);
-    if (activeColumnId) {
-      const overColumnId = resolveColumnTargetId(overId, currentBoard.columns);
-      if (!overColumnId || activeColumnId === overColumnId) return;
+    if (startColumnIds) {
+      if (cancelled) {
+        restoreColumnOrder(startColumnIds);
+        return;
+      }
+      if (!currentBoard) return;
 
-      reorderColumnsMutation.mutate({
-        orderedColumnIds: currentBoard.columns.map((column) => column.id),
-      });
+      const currentOrder = currentBoard.columns.map((column) => column.id);
+      const changed = currentOrder.some(
+        (id, index) => id !== startColumnIds[index],
+      );
+      if (!changed) return;
+
+      reorderColumnsMutation.mutate({ orderedColumnIds: currentOrder });
       return;
     }
 
-    const activeTaskId = parseTaskDndId(activeId);
-    if (!activeTaskId) return;
+    if (!startTask) return;
 
-    const moveInput = resolveTaskMoveInput(currentBoard, activeTaskId, overId);
-    if (!moveInput) return;
+    if (cancelled) {
+      queryClient.setQueryData<BoardWithColumns>(
+        boardsKeys.detail(boardId),
+        (current) =>
+          current
+            ? applyOptimisticTaskMove(current, startTask.taskId, {
+                toColumnId: startTask.columnId,
+                toPosition: startTask.position,
+              })
+            : current,
+      );
+      return;
+    }
 
-    const sourceColumn = currentBoard.columns.find((column) =>
-      column.tasks.some((task) => task.id === activeTaskId),
+    if (!currentBoard) return;
+
+    const currentColumn = currentBoard.columns.find((column) =>
+      column.tasks.some((task) => task.id === startTask.taskId),
+    );
+    if (!currentColumn) return;
+
+    const currentPosition = currentColumn.tasks.findIndex(
+      (task) => task.id === startTask.taskId,
     );
     if (
-      sourceColumn &&
-      sourceColumn.id === moveInput.toColumnId &&
-      sourceColumn.tasks.findIndex((task) => task.id === activeTaskId) ===
-        moveInput.toPosition
+      currentColumn.id === startTask.columnId &&
+      currentPosition === startTask.position
     ) {
       return;
     }
 
     moveTaskMutation.mutate({
-      taskId: activeTaskId,
-      input: moveInput,
+      taskId: startTask.taskId,
+      input: {
+        toColumnId: currentColumn.id,
+        toPosition: currentPosition,
+      },
     });
+  }
+
+  function handleDragEnd() {
+    finishBoardItemDrag(false);
+  }
+
+  function handleDragCancel() {
+    finishBoardItemDrag(true);
   }
 
   return (
@@ -322,6 +387,7 @@ export function Board({ board }: BoardProps) {
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
         <div className="board-columns">
           <SortableContext

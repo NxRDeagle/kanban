@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../store/auth";
+import { ToastHost } from "../common/ToastHost";
 import "./AppLayout.css";
 
 interface AppLayoutProps {
@@ -34,6 +35,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         )}
       </header>
       <main className="app-main">{children}</main>
+      <ToastHost />
     </div>
   );
 }

@@ -4,11 +4,21 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import App from "./App.tsx";
+import { getErrorMessage } from "./lib/errorMessage";
+import { useToastStore } from "./store/toast";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: false,
+    },
+    mutations: {
+      onError: (error) => {
+        useToastStore.getState().push({
+          variant: "error",
+          message: getErrorMessage(error),
+        });
+      },
     },
   },
 });

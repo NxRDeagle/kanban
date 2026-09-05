@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -9,11 +9,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import type {
-  DragEndEvent,
-  DragOverEvent,
-  DragStartEvent,
-} from "@dnd-kit/core";
+import type { DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
@@ -52,6 +48,7 @@ export function BoardsPage() {
   const [editingBoard, setEditingBoard] = useState<Board | null>(null);
   const [activeBoard, setActiveBoard] = useState<Board | null>(null);
   const [isDraggingBoard, setIsDraggingBoard] = useState(false);
+  const dragStartBoardIdsRef = useRef<string[] | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -82,9 +79,21 @@ export function BoardsPage() {
     deleteBoardMutation.mutate(board.id);
   }
 
+  function restoreBoardOrder(orderedIds: string[]) {
+    queryClient.setQueryData<Board[]>(boardsKeys.all, (items) => {
+      if (!items) return items;
+      const byId = new Map(items.map((board) => [board.id, board]));
+      return orderedIds.flatMap((id, index) => {
+        const board = byId.get(id);
+        return board ? [{ ...board, position: index }] : [];
+      });
+    });
+  }
+
   function handleDragStart(event: DragStartEvent) {
     if (!boards) return;
     setIsDraggingBoard(true);
+    dragStartBoardIdsRef.current = boards.map((board) => board.id);
     const boardId = parseBoardDndId(String(event.active.id));
     setActiveBoard(boards.find((board) => board.id === boardId) ?? null);
   }
@@ -109,24 +118,35 @@ export function BoardsPage() {
     });
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  function finishBoardDrag(cancelled: boolean) {
     setIsDraggingBoard(false);
     window.setTimeout(() => setActiveBoard(null), DND_TRANSITION_MS);
-    const { active, over } = event;
-    if (!over) return;
 
-    const activeBoardId = parseBoardDndId(String(active.id));
-    const overBoardId = parseBoardDndId(String(over.id));
-    if (!activeBoardId || !overBoardId || activeBoardId === overBoardId) {
+    const startOrder = dragStartBoardIdsRef.current;
+    dragStartBoardIdsRef.current = null;
+    if (!startOrder) return;
+
+    if (cancelled) {
+      restoreBoardOrder(startOrder);
       return;
     }
 
     const currentBoards = queryClient.getQueryData<Board[]>(boardsKeys.all);
     if (!currentBoards) return;
 
-    reorderBoardsMutation.mutate({
-      orderedBoardIds: currentBoards.map((board) => board.id),
-    });
+    const currentOrder = currentBoards.map((board) => board.id);
+    const changed = currentOrder.some((id, index) => id !== startOrder[index]);
+    if (!changed) return;
+
+    reorderBoardsMutation.mutate({ orderedBoardIds: currentOrder });
+  }
+
+  function handleDragEnd() {
+    finishBoardDrag(false);
+  }
+
+  function handleDragCancel() {
+    finishBoardDrag(true);
   }
 
   return (
@@ -158,6 +178,7 @@ export function BoardsPage() {
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
         >
           <SortableContext
             items={boards.map((board) => boardDndId(board.id))}

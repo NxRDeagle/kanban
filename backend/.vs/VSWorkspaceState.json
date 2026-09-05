@@ -6,9 +6,6 @@
   },
   "ExpandedNodes": [
     "",
-    "\\src\\db\\migrations",
-    "\\src\\repositories",
-    "\\src\\routes",
     "\\tools"
   ],
   "PreviewInSolutionExplorer": false
