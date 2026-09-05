@@ -3,3 +3,4 @@ FileContentIndex/
 ipch/
 v17/
 *.db
+*.sqlite
