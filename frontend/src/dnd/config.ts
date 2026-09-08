@@ -1,4 +1,4 @@
-import type { DropAnimation, UniqueIdentifier } from "@dnd-kit/core";
+import type { DropAnimation } from "@dnd-kit/core";
 import { defaultDropAnimationSideEffects } from "@dnd-kit/core";
 import type { AnimateLayoutChanges } from "@dnd-kit/sortable";
 import { defaultAnimateLayoutChanges } from "@dnd-kit/sortable";
@@ -24,10 +24,3 @@ export const dropAnimation: DropAnimation = {
 
 export const animateLayoutChanges: AnimateLayoutChanges = (args) =>
   defaultAnimateLayoutChanges(args);
-
-export function isSameDropTarget(
-  activeId: UniqueIdentifier,
-  overId: UniqueIdentifier,
-): boolean {
-  return String(activeId) === String(overId);
-}

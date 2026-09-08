@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import App from "./App.tsx";
 import { getErrorMessage } from "./lib/errorMessage";
-import { useToastStore } from "./store/toast";
+import useToastStore from "./store/toast/useToastStore";
 
 const queryClient = new QueryClient({
   defaultOptions: {

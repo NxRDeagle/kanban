@@ -5,12 +5,9 @@ import {
   reorderColumns,
   updateColumn,
 } from "../api/columns";
-import type {
-  BoardWithColumns,
-  ReorderColumnsInput,
-  UpdateColumnInput,
-} from "../types";
+import type { BoardWithColumns, ReorderColumnsInput } from "../types";
 import { boardsKeys } from "../api/queryKeys";
+import type { UpdateColumnVariables } from "./types";
 
 export function useCreateColumnMutation(boardId: string) {
   const queryClient = useQueryClient();
@@ -25,13 +22,8 @@ export function useCreateColumnMutation(boardId: string) {
 export function useUpdateColumnMutation(boardId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      columnId,
-      input,
-    }: {
-      columnId: string;
-      input: UpdateColumnInput;
-    }) => updateColumn(columnId, input),
+    mutationFn: ({ columnId, input }: UpdateColumnVariables) =>
+      updateColumn(columnId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: boardsKeys.detail(boardId) });
     },

@@ -7,8 +7,9 @@ import {
   reorderBoards,
   updateBoard,
 } from "../api/boards";
-import type { Board, ReorderBoardsInput, UpdateBoardInput } from "../types";
+import type { Board, ReorderBoardsInput } from "../types";
 import { boardsKeys } from "../api/queryKeys";
+import type { UpdateBoardVariables } from "./types";
 
 export function useBoardsQuery() {
   return useQuery({
@@ -37,13 +38,8 @@ export function useCreateBoardMutation() {
 export function useUpdateBoardMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      boardId,
-      input,
-    }: {
-      boardId: string;
-      input: UpdateBoardInput;
-    }) => updateBoard(boardId, input),
+    mutationFn: ({ boardId, input }: UpdateBoardVariables) =>
+      updateBoard(boardId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: boardsKeys.all });
     },

@@ -1,25 +1,19 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTask, deleteTask, moveTask, updateTask } from "../api/tasks";
-import type {
-  BoardWithColumns,
-  MoveTaskInput,
-  UpdateTaskInput,
-} from "../types";
+import type { BoardWithColumns } from "../types";
 import { boardsKeys } from "../api/queryKeys";
 import { applyOptimisticTaskMove } from "../dnd/taskMove";
+import type {
+  CreateTaskVariables,
+  MoveTaskVariables,
+  UpdateTaskVariables,
+} from "./types";
 
 export function useCreateTaskMutation(boardId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      columnId,
-      title,
-      description,
-    }: {
-      columnId: string;
-      title: string;
-      description?: string;
-    }) => createTask(columnId, { title, description }),
+    mutationFn: ({ columnId, title, description }: CreateTaskVariables) =>
+      createTask(columnId, { title, description }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: boardsKeys.detail(boardId) });
     },
@@ -29,13 +23,8 @@ export function useCreateTaskMutation(boardId: string) {
 export function useUpdateTaskMutation(boardId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      taskId,
-      input,
-    }: {
-      taskId: string;
-      input: UpdateTaskInput;
-    }) => updateTask(taskId, input),
+    mutationFn: ({ taskId, input }: UpdateTaskVariables) =>
+      updateTask(taskId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: boardsKeys.detail(boardId) });
     },
@@ -55,7 +44,7 @@ export function useDeleteTaskMutation(boardId: string) {
 export function useMoveTaskMutation(boardId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ taskId, input }: { taskId: string; input: MoveTaskInput }) =>
+    mutationFn: ({ taskId, input }: MoveTaskVariables) =>
       moveTask(taskId, input),
     onMutate: async ({ taskId, input }) => {
       await queryClient.cancelQueries({ queryKey: boardsKeys.detail(boardId) });

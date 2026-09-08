@@ -45,7 +45,7 @@ export interface BoardWithColumns extends Board {
 
 export interface CreateBoardInput {
   title: string;
-  description?: string;
+  description?: string | null;
 }
 
 export type UpdateBoardInput = Partial<CreateBoardInput>;
@@ -66,7 +66,7 @@ export interface ReorderBoardsInput {
 
 export interface CreateTaskInput {
   title: string;
-  description?: string;
+  description?: string | null;
 }
 
 export type UpdateTaskInput = Partial<CreateTaskInput>;

@@ -1,5 +1,6 @@
+import { AUTH_LOGIN_PATH, AUTH_REGISTER_PATH } from "./constants";
 import type { ApiErrorResponse } from "./types";
-import { useAuthStore } from "../store/auth";
+import useAuthStore from "../store/auth/useAuthStore";
 
 export class ApiError extends Error {
   status: number;
@@ -11,7 +12,7 @@ export class ApiError extends Error {
 }
 
 function isAuthPath(path: string): boolean {
-  return path === "/auth/login" || path === "/auth/register";
+  return path === AUTH_LOGIN_PATH || path === AUTH_REGISTER_PATH;
 }
 
 async function send(
